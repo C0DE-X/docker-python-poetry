@@ -1,0 +1,25 @@
+# -------------------------
+# Builder stage
+# -------------------------
+FROM python:slim-trixie AS builder
+
+# Install required tools
+RUN apt update && apt install -y curl ca-certificates
+
+# Install Poetry into /etc/poetry (includes its own musl Python)
+RUN curl -sSL https://install.python-poetry.org | \
+    POETRY_HOME=/etc/poetry python3 -
+
+# -------------------------
+# Final stage
+# -------------------------
+FROM python:slim-trixie
+
+# Copy Poetry from builder
+COPY --from=builder /etc/poetry /etc/poetry
+
+# Make poetry available on PATH
+RUN ln -s /etc/poetry/venv/bin/poetry /usr/local/bin/poetry
+
+# Optional sanity check
+RUN /usr/local/bin/poetry --version
