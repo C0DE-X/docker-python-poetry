@@ -1,0 +1,36 @@
+# -------------------------
+# Builder stage
+# -------------------------
+FROM cgr.dev/chainguard/wolfi-base AS builder
+
+USER root
+
+# Install build-time tools: Python3 + curl + bash + git + ca-certificates
+RUN apk add --no-cache python3 curl bash git ca-certificates
+
+# Install Poetry into /etc/poetry
+RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/etc/poetry python3 -
+
+# Clean up Poetry caches to reduce size
+RUN rm -rf /etc/poetry/venv/cache /etc/poetry/cache /root/.cache/pypoetry \
+           /usr/lib/python3.14/__pycache__ /usr/lib/python3.14/test
+
+# -------------------------
+# Final stage
+# -------------------------
+FROM cgr.dev/chainguard/wolfi-base
+
+USER root
+
+# Install minimal Python3 runtime + bash + git + ca-certificates
+RUN apk add --no-cache python3 bash git ca-certificates
+
+# Copy Poetry from builder
+COPY --from=builder /etc/poetry /etc/poetry
+
+# Add Poetry to PATH
+ENV PATH="/etc/poetry/bin:${PATH}"
+
+# Default shell for CI/dev
+ENTRYPOINT []
+CMD ["/usr/bin/bash"]
