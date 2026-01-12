@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+# Use environment variables or default to 0 (root)
+USER_ID=${LOCAL_USER_ID:-0}
+GROUP_ID=${LOCAL_GROUP_ID:-0}
+
+# Only create user if not root
+if [ "$USER_ID" -ne 0 ] && [ "$GROUP_ID" -ne 0 ]; then
+
+    # Create group if it doesn't exist
+    if ! getent group hostgroup >/dev/null 2>&1; then
+        addgroup -g "$GROUP_ID" hostgroup
+    fi
+
+    # Create user if it doesn't exist
+    if ! id hostuser >/dev/null 2>&1; then
+        adduser -D -u "$USER_ID" -G hostgroup -s /bin/sh hostuser
+    fi
+
+    echo "Switching to user: hostuser ($USER_ID:$GROUP_ID)"
+
+    # Use su-exec if available, otherwise fallback to su
+    if command -v su-exec >/dev/null 2>&1; then
+        exec su-exec hostuser "$@"
+    else
+        exec su hostuser -c "$*"
+    fi
+
+else
+    # Root or CI mode
+    exec "$@"
+fi

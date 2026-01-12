@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -e
+
+# Default to running as root if no UID/GID is provided
+USER_ID=${LOCAL_USER_ID:-0}
+GROUP_ID=${LOCAL_GROUP_ID:-0}
+
+# Only create user if UID/GID are not root
+if [ "$USER_ID" -ne 0 ] && [ "$GROUP_ID" -ne 0 ]; then
+    # Create group if it doesn't exist
+    if ! getent group hostgroup >/dev/null 2>&1; then
+        groupadd -g "$GROUP_ID" hostgroup
+    fi
+
+    # Create user if it doesn't exist
+    if ! id -u hostuser >/dev/null 2>&1; then
+        useradd -m -u "$USER_ID" -g "$GROUP_ID" -s /bin/bash hostuser
+    fi
+
+    echo "Switching to user: hostuser ($USER_ID:$GROUP_ID)"
+
+    # Execute command as the hostuser
+    if [ $# -eq 0 ]; then
+        # No command provided, fallback to interactive shell
+        exec su - hostuser
+    else
+        # Run the provided command as hostuser
+        exec su - hostuser -c "$*"
+    fi
+else
+    # CI mode or root fallback
+    if [ $# -eq 0 ]; then
+        exec /bin/bash
+    else
+        exec "$@"
+    fi
+fi
